@@ -1,4 +1,4 @@
 app:
-  applicationId: fab203b8-cb6a-4a81-a825-410e15f41955
-  host: https://crm.test.cloudnexus.site
+  applicationId: a48a46f2-22b1-4aa2-99f2-dfcd1470bc07
+  host: https://crm.bknd.cloudnexus.site
   env: Development
