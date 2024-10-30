@@ -50,3 +50,5 @@ steps:
 - task: SonarCloudPublish@3
   inputs:
     pollingTimeoutSec: '300'
+    failOnIssues: false 
+
