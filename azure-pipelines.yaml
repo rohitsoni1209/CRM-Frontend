@@ -76,7 +76,7 @@ steps:
   inputs:
     script: |
       wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/junit.tpl -O junit.tpl
-      trivy image application321.azurecr.io/crmfront:$(Build.BuildNumber) --db-repository "ghcr.io/aquasecurity/trivy-db:2","public.ecr.aws/aquasecurity/trivy-db" --format template --template "@./junit.tpl" --output $(Build.ArtifactStagingDirectory)/trivy-docker-image-report.xml
+      trivy image application321.azurecr.io/crmfront:$(Build.BuildNumber) --db-repository "ghcr.io/aquasecurity/trivy-db:2","public.ecr.aws/aquasecurity/trivy-db" --java-db-repository "public.ecr.aws/aquasecurity/trivy-java-db:1" --format template --template "@./junit.tpl" --output $(Build.ArtifactStagingDirectory)/trivy-docker-image-report.xml
 
 - task: PublishTestResults@2
   displayName: 'Publish Trivy App Image Scan Results'
