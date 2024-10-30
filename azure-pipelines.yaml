@@ -52,3 +52,11 @@ steps:
     pollingTimeoutSec: '300'
     failOnIssues: false 
 
+- task: Docker@2
+  inputs:
+    containerRegistry: 'docker'
+    repository: 'crmfront'
+    command: 'buildAndPush'
+    Dockerfile: 'Dockerfile'
+    tags: '$(Build.BuildNumber)'
+
