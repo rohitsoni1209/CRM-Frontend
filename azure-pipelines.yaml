@@ -47,10 +47,10 @@ steps:
 
 - task: SonarCloudAnalyze@3
 
-- task: SonarCloudPublish@3
-  inputs:
-    pollingTimeoutSec: '300'
-    failOnIssues: false 
+# - task: SonarCloudPublish@3
+#   inputs:
+#     pollingTimeoutSec: '300'
+#     failOnIssues: false 
 
 - task: Docker@2
   inputs:
