@@ -116,15 +116,24 @@ steps:
 #     HAWK_API_KEY: $(hawk_api_key)
 
 - script: |
-    echo "Starting update of image tag in GitOps repository argo.yaml"
+    echo "Retrieving the SHA of the newly pushed image..."
 
-    # Capture the latest commit SHA from the current (crm) repository
-    latest_sha=$(git rev-parse --short HEAD)
-    echo "Latest commit SHA from crm repository: ${latest_sha}"
+    # Get the SHA of the last pushed image
+    image_sha=$(docker inspect --format='{{index .RepoDigests 0}}' application321.azurecr.io/crmrepo:$(Build.BuildNumber) | cut -d'@' -f2)
+    
+    if [ -z "$image_sha" ]; then
+      echo "Error: Unable to retrieve the SHA for the image."
+      exit 1
+    fi
+
+    echo "Latest image SHA: ${image_sha}"
+
+    echo "Starting update of image tag in GitOps repository argo.yaml"
 
     # Clone the GitOps repository
     git clone https://$(AccessToken)@dev.azure.com/davidputra2812/calculator-project/_git/GitOps
     cd GitOps
+    git checkout maain
 
     # Verify that the target argo.yaml file exists
     if [ ! -f crm/argo.yaml ]; then
@@ -132,25 +141,33 @@ steps:
       exit 1
     fi
 
-    # Update the image tag in the GitOps argo.yaml with the latest SHA from crm
-    sed -i "s|image: application321.azurecr.io/crmfront@sha:.*|image: application321.azurecr.io/crmrepo@sha256:${latest_sha}|" crm/argo.yaml
+    echo "Contents of argo.yaml before update:"
+    cat crm/argo.yaml
 
-    echo "Updated crm/argo.yaml in GitOps repository with new image tag using SHA: ${latest_sha}"
+    # Update the image tag in the GitOps argo.yaml with the latest SHA from the image
+    sed -i "s|image: application321.azurecr.io/crmfront@sha:*|image: application321.azurecr.io/crmfront@sha256:${image_sha}|" crm/argo.yaml
 
-    # Configure Git to use your credentials for the commit
+    echo "Contents of argo.yaml after update:"
+    cat crm/argo.yaml
+
+    echo "Updated crm/argo.yaml in GitOps repository with new image tag using SHA: ${image_sha}"
+
+    # Set up Git configuration
     git config --global user.email "davidputra2812@gmail.com"
     git config --global user.name "davidputra2812"
 
-    # Stage, commit, and push the changes to the GitOps repository
-    git add crm/argo.yaml
-    if git commit -m "Update image tag to ${latest_sha} from crm"; then
-      echo "Changes committed in GitOps repository."
-    else
-      echo "No changes to commit."
-    fi
 
-    # Push the changes to the same branch in the GitOps repository
-    git push origin $(Build.SourceBranch)
+
+    # Stage and attempt to commit changes
+    git add crm/argo.yaml
+    if git diff --cached --quiet; then
+      echo "No changes to commit in GitOps repository."
+    else
+      git commit -m "Update image tag to ${image_sha} from crm"
+      echo "Changes committed in GitOps repository."
+
+      # Push the changes to the correct branch in GitOps
+      git push origin main
+    fi
   displayName: 'Update image tag in GitOps argo.yaml and push changes'
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-
