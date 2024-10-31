@@ -20,35 +20,141 @@ steps:
     echo "This is a placeholder step; no changes are made."
   displayName: 'No-op step'
 
-# Snyk Security Scan for Application Dependencies
-- task: SnykSecurityScan@1
+# # Snyk Security Scan for Application Dependencies
+# - task: SnykSecurityScan@1
+#   inputs:
+#     serviceConnectionEndpoint: 'snykoattacko'
+#     testType: 'app'
+#     targetFile: 'package.json'
+#     monitorWhen: 'always'
+#     failOnIssues: false
+#     projectName: 'calculator-project/CRM Frontend'
+#     organization: 'f6ff1f1e-b60e-43aa-91ab-fad13fbc3519'
+#     reportFormat: 'html'
+#     reportFile: '$(Build.ArtifactStagingDirectory)/snyk-app-report.html'
+#   displayName: 'Run Snyk App Scan'
+
+# - task: SonarCloudPrepare@3
+#   inputs:
+#     SonarCloud: 'sonar-connection'
+#     organization: 'demodevopsyl'
+#     scannerMode: 'cli'
+#     cliScannerVersion: '6.2.1.4610'
+#     configMode: 'manual'
+#     cliProjectKey: 'davidputra2812_CRM-Frontend'
+#     cliProjectName: 'CRM Frontend'
+#     cliSources: '.'
+
+# - task: SonarCloudAnalyze@3
+
+# - task: SonarCloudPublish@3
+#   inputs:
+#     pollingTimeoutSec: '300'
+#     failOnIssues: false 
+
+- task: Docker@2
   inputs:
-    serviceConnectionEndpoint: 'snykoattacko'
-    testType: 'app'
-    targetFile: 'package.json'
-    monitorWhen: 'always'
-    failOnIssues: false
-    projectName: 'calculator-project/CRM Frontend'
-    organization: 'f6ff1f1e-b60e-43aa-91ab-fad13fbc3519'
-    reportFormat: 'html'
-    reportFile: '$(Build.ArtifactStagingDirectory)/snyk-app-report.html'
-  displayName: 'Run Snyk App Scan'
+    containerRegistry: 'docker'
+    repository: 'crmfront'
+    command: 'buildAndPush'
+    Dockerfile: 'Dockerfile'
+    tags: '$(Build.BuildNumber)'
 
-- task: SonarCloudPrepare@3
+- task: CmdLine@2
+  displayName: Install Trivy
   inputs:
-    SonarCloud: 'sonar-connection'
-    organization: 'demodevopsyl'
-    scannerMode: 'cli'
-    cliScannerVersion: '6.2.1.4610'
-    configMode: 'manual'
-    cliProjectKey: 'davidputra2812_CRM-Frontend'
-    cliProjectName: 'CRM Frontend'
-    cliSources: '.'
+    script: |
+      TRIVY_VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")' | sed 's/^v//')
+      wget https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
+      tar xzf trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
+      rm trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
+      sudo mv trivy /usr/local/bin/
+      trivy -v
 
-- task: SonarCloudAnalyze@3
-
-- task: SonarCloudPublish@3
+- task: CmdLine@2
+  displayName: 'Run Trivy scan on image'
   inputs:
-    pollingTimeoutSec: '300'
-    failOnIssues: false 
+    script: |
+      wget https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/junit.tpl -O junit.tpl
+      trivy image application321.azurecr.io/crmfront:$(Build.BuildNumber) --db-repository "ghcr.io/aquasecurity/trivy-db:2","public.ecr.aws/aquasecurity/trivy-db" --java-db-repository "public.ecr.aws/aquasecurity/trivy-java-db:1" --format template --template "@./junit.tpl" --output $(Build.ArtifactStagingDirectory)/trivy-docker-image-report.xml
 
+- task: PublishTestResults@2
+  displayName: 'Publish Trivy App Image Scan Results'
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '$(Build.ArtifactStagingDirectory)/trivy-docker-image-report.xml'
+    failTaskOnFailedTests: false
+
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'deploy'
+    runOptions: 'commands'
+    commands: |
+      docker pull application321.azurecr.io/crmfront:$(Build.BuildNumber)
+      docker run -d --name crm_front -p 3001:80 application321.azurecr.io/crmfront:$(Build.BuildNumber)
+
+- task: HawkScanInstall@1
+  inputs:
+    version: latest
+    installerType: 'auto'
+
+- script: |
+    java -version
+  displayName: 'Check Java Version'
+
+- task: JavaToolInstaller@0
+  inputs:
+    versionSpec: '17'
+    jdkSourceOption: 'PreInstalled'
+    jdkArchitectureOption: 'x64'
+    
+- task: RunHawkScan@1
+  inputs:
+    configFile: "stackhawk.yml"
+    version: "latest"
+  env:
+    HAWK_API_KEY: $(hawk_api_key)
+
+- script: |
+    echo "Updating image tag in argo.yaml in GitOps repository"
+
+    # Print current directory for debugging
+    pwd
+    echo "Listing files in the current directory:"
+    ls -la
+
+    # Verify that the file exists
+    if [ ! -f crm/argo.yaml ]; then
+      echo "Error: crm/argo.yaml does not exist."
+      exit 1
+    fi
+
+    # Update the image tag in deployment.yaml with the latest commit SHA
+    latest_sha=$(git rev-parse --short HEAD)
+    sed -i "s|image: application321.azurecr.io/crmfront@sha256:.*|image: application321.azurecr.io/crmfront@sha256:${latest_sha}|" crm/argo.yaml
+
+    echo "Updated deployment.yaml with new image tag using SHA: ${latest_sha}"
+
+    # Set up Git configuration
+    git config --global user.email "davidputra2812@gmail.com"
+    git config --global user.name "davidputra2812"
+
+    # Fetch the latest changes from the remote
+    git fetch origin
+
+    # Checkout the branch where the PR was created
+    echo "Checking out the branch $(Build.SourceBranch)"
+    git checkout $(Build.SourceBranch)
+
+    # Stage and commit changes
+    git add crypto/deployment.yaml
+    if git commit -m "Update image tag to ${latest_sha}"; then
+      echo "Changes committed."
+    else
+      echo "No changes to commit."
+    fi
+
+    # Push changes to the specified GitOps repository using the access token
+    git push https://$(AccessToken)@dev.azure.com/davidputra2812/calculator-project/_git/GitOps HEAD:$(Build.SourceBranch)
+  displayName: 'Update image tag in deployment.yaml and push changes to GitOps repo'
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
