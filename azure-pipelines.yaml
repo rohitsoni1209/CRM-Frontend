@@ -145,7 +145,7 @@ steps:
     cat crm/argo.yaml
 
     # Update the image tag in the GitOps argo.yaml with the latest SHA from the image
-    sed -i "s|image: application321.azurecr.io/crmfront@sha:*|image: application321.azurecr.io/crmfront@s${image_sha}|" crm/argo.yaml
+    sed -i "s|image: application321.azurecr.io/crmfront@.*|image: application321.azurecr.io/crmfront@${image_sha}|" crm/argo.yaml
 
     echo "Contents of argo.yaml after update:"
     cat crm/argo.yaml
