@@ -119,7 +119,7 @@ steps:
     echo "Retrieving the SHA of the newly pushed image..."
 
     # Get the SHA of the last pushed image
-    image_sha=$(docker inspect --format='{{index .RepoDigests 0}}' application321.azurecr.io/crmrepo:$(Build.BuildNumber) | cut -d'@' -f2)
+    image_sha=$(docker inspect --format='{{index .RepoDigests 0}}' application321.azurecr.io/crmfront:$(Build.BuildNumber) | cut -d'@' -f2)
     
     if [ -z "$image_sha" ]; then
       echo "Error: Unable to retrieve the SHA for the image."
@@ -145,7 +145,7 @@ steps:
     cat crm/argo.yaml
 
     # Update the image tag in the GitOps argo.yaml with the latest SHA from the image
-    sed -i "s|image: application321.azurecr.io/crmfront@sha:*|image: application321.azurecr.io/crmfront@sha256:${image_sha}|" crm/argo.yaml
+    sed -i "s|image: application321.azurecr.io/crmfront@sha:*|image: application321.azurecr.io/crmfront@s${image_sha}|" crm/argo.yaml
 
     echo "Contents of argo.yaml after update:"
     cat crm/argo.yaml
