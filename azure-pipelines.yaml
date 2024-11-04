@@ -91,9 +91,10 @@ steps:
     runOptions: 'commands'
     commands: |
       docker pull application321.azurecr.io/crmfront:$(Build.BuildNumber)
+      docker rm -f crm_front
       docker run -d --name crm_front -p 3001:80 application321.azurecr.io/crmfront:$(Build.BuildNumber)
   condition: eq(variables['Build.Reason'], 'PullRequest')
-  
+
 - task: HawkScanInstall@1
   inputs:
     version: latest
@@ -174,7 +175,6 @@ steps:
     fi
   displayName: 'Update image tag in GitOps argo.yaml and push changes'
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-
 
 - script: |
     PR_ID=$(System.PullRequest.PullRequestId)
