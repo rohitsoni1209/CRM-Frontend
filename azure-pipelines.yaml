@@ -34,23 +34,23 @@ steps:
     reportFile: '$(Build.ArtifactStagingDirectory)/snyk-app-report.html'
   displayName: 'Run Snyk App Scan'
 
-- task: SonarCloudPrepare@3
-  inputs:
-    SonarCloud: 'sonar-connection'
-    organization: 'demodevopsyl'
-    scannerMode: 'cli'
-    cliScannerVersion: '6.2.1.4610'
-    configMode: 'manual'
-    cliProjectKey: 'davidputra2812_CRM-Frontend'
-    cliProjectName: 'CRM Frontend'
-    cliSources: '.'
+# - task: SonarCloudPrepare@3
+#   inputs:
+#     SonarCloud: 'sonar-connection'
+#     organization: 'demodevopsyl'
+#     scannerMode: 'cli'
+#     cliScannerVersion: '6.2.1.4610'
+#     configMode: 'manual'
+#     cliProjectKey: 'davidputra2812_CRM-Frontend'
+#     cliProjectName: 'CRM Frontend'
+#     cliSources: '.'
 
-- task: SonarCloudAnalyze@3
+# - task: SonarCloudAnalyze@3
 
-- task: SonarCloudPublish@3
-  inputs:
-    pollingTimeoutSec: '300'
-    failOnIssues: false 
+# - task: SonarCloudPublish@3
+#   inputs:
+#     pollingTimeoutSec: '300'
+#     failOnIssues: false 
 
 - task: Docker@2
   inputs:
