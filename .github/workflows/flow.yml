@@ -49,3 +49,6 @@ jobs:
             sudo docker run -d -p 80:80 --name crm-frontend ${{ secrets.DOCKER_USERNAME }}/crm-frontend:latest
             sudo docker ps -a -q --filter "status=exited" | xargs sudo docker rm
             sudo docker images -q --filter "dangling=true" | xargs sudo docker rmi
+          EOF
+        env:
+          EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}
